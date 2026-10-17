@@ -1,0 +1,38 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 test_protocol.py
+
+  app:
+    runs-on: macos-14
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app and DMG
+        working-directory: app
+        run: |
+          chmod +x build_app.sh make_dmg.sh service/*.sh
+          ./build_app.sh
+          ./make_dmg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: USB-Tether-dmg
+          path: app/*.dmg
+      - name: Attach DMG to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/*.dmg
